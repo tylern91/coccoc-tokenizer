@@ -3,3 +3,5 @@ install
 python/*.c
 python/*.cpp
 python/*.html
+
+.worktrees
