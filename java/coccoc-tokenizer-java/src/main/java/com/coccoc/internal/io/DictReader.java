@@ -85,6 +85,11 @@ public final class DictReader {
             for (int i = 0; i < sz; i++) weight[i] = buf.getFloat();
             buf.get(flags);
 
+            // P0#3: replace NaN weights (e.g. from bundled dict entries) with NEGATIVE_INFINITY
+            // so they never silently poison the Viterbi DP comparison chain
+            for (int i = 0; i < sz; i++) {
+                if (Float.isNaN(weight[i])) weight[i] = Float.NEGATIVE_INFINITY;
+            }
             return new MultitermTrie(buildCharMap(codepoints), base, parent, weight, flags);
         } catch (BufferUnderflowException e) {
             throw new IOException("truncated payload in " + name, e);
@@ -124,6 +129,13 @@ public final class DictReader {
             int[] rowOffset = new int[n + 1];
             for (int i = 0; i <= n; i++) rowOffset[i] = buf.getInt();
 
+            // P0#2: validate monotone invariant before allocating colIndex/value arrays
+            for (int i = 0; i < n; i++) {
+                if (rowOffset[i] > rowOffset[i + 1])
+                    throw new IOException("rowOffset invariant violated at row " + i
+                            + ": offset[" + i + "]=" + rowOffset[i]
+                            + " > offset[" + (i + 1) + "]=" + rowOffset[i + 1]);
+            }
             int totalNnz = rowOffset[n];
             checkSize(totalNnz, MAX_NNZ, "nnz count");
             int[]   colIndex = new int[totalNnz];

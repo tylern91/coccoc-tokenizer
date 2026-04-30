@@ -98,8 +98,9 @@ public class Tokenizer {
             this.multitermTrie = DictReader.readMultiterm(mt, "multiterm.bin");
             this.syllableTrie  = DictReader.readSyllable(sy,  "syllable.bin");
         }
-        InputStream bigramIn = cl.getResourceAsStream(CLASSPATH_DICTS + "/bigram.bin");
-        this.bigramScores = bigramIn != null ? DictReader.readBigram(bigramIn, "bigram.bin") : null;
+        try (InputStream bigramIn = cl.getResourceAsStream(CLASSPATH_DICTS + "/bigram.bin")) {
+            this.bigramScores = bigramIn != null ? DictReader.readBigram(bigramIn, "bigram.bin") : null;
+        }
         VnLangTool.initSimple();
         this.segmenter    = new Segmenter(this.multitermTrie);
         this.dictPath     = CLASSPATH_DICT_PATH;

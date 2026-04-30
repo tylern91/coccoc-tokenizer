@@ -123,4 +123,54 @@ class DictReaderTest {
         assertArrayEquals(colIndex,  scores.colIndex(),   "colIndex");
         assertArrayEquals(value,     scores.values(),     0.0f, "value");
     }
+    // P0#2 — non-monotonic rowOffset must be rejected at load time
+    @Test
+    void readBigram_rejectsNonMonotonicRowOffset() throws IOException {
+        // rowOffset[1]=5 but totalNnz (=rowOffset[2])=3: 5 > 3 violates monotone invariant.
+        // Without the validation, BigramScores.getScore(0, j) would do binarySearch on [0..5)
+        // when colIndex.length==3, causing AIOOBE at runtime.
+        int n = 2;
+        int[] rowOffset = {0, 5, 3};  // rowOffset[1]=5 > rowOffset[2]=3
+        int[] colIndex  = {0, 1, 2};  // 3 entries (matches totalNnz=rowOffset[2]=3)
+        float[] value   = {0.1f, 0.2f, 0.3f};
+
+        Path binFile = tempDir.resolve("bigram_bad_rowoffset.bin");
+        DictCompileTestSupport.writeBigramBin(binFile, n, rowOffset, colIndex, value);
+
+        IOException ex = assertThrows(IOException.class,
+                () -> DictReader.readBigram(binFile));
+        assertTrue(ex.getMessage().contains("rowOffset invariant"),
+                "expected 'rowOffset invariant' in message, got: " + ex.getMessage());
+    }
+
+    // P0#3 — NaN weights in multiterm.bin must be sanitized to NEGATIVE_INFINITY at load time
+    @Test
+    void readMultiterm_sanitizesNanWeightToNegativeInfinity() throws IOException {
+        // Build a valid trie, corrupt one weight to NaN via the live array reference,
+        // write it to disk, then verify DictReader replaces NaN with NEGATIVE_INFINITY.
+        TriePacker.HashNode root = TriePacker.buildHashTrie(new String[]{"ab"});
+        MultitermTrie trie = TriePacker.pack(root);
+
+        // The live weightArray() allows in-place NaN injection before serialization.
+        float[] weights = trie.weightArray();
+        boolean injected = false;
+        for (int i = 0; i < weights.length; i++) {
+            if (weights[i] > 0f) {          // ending-node weight is 1.0f from buildHashTrie
+                weights[i] = Float.NaN;
+                injected = true;
+                break;
+            }
+        }
+        assertTrue(injected, "test setup: failed to find a positive-weight node to corrupt");
+
+        Path binFile = tempDir.resolve("multiterm_nan.bin");
+        DictCompileTestSupport.writeMultitermBin(binFile, trie);
+
+        MultitermTrie loaded = DictReader.readMultiterm(binFile);
+
+        for (float w : loaded.weightArray()) {
+            assertFalse(Float.isNaN(w),
+                    "after loading, no weight should be NaN; expected NEGATIVE_INFINITY in place of NaN");
+        }
+    }
 }
