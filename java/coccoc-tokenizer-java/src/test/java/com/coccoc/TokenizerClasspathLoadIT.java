@@ -66,15 +66,15 @@ class TokenizerClasspathLoadIT {
     }
 
     @Test
-    void getInstance_segmentStillThrowsM7() throws IOException {
+    void getInstance_segmentReturnsTokens() throws IOException {
         Assumptions.assumeTrue(
             Tokenizer.class.getClassLoader()
                 .getResource("com/coccoc/dicts/multiterm.bin") != null,
             "Skipping: dicts resources not on classpath");
 
         Tokenizer t = Tokenizer.getInstance();
-        UnsupportedOperationException ex = assertThrows(
-            UnsupportedOperationException.class, () -> t.segment("hello"));
-        assertTrue(ex.getMessage().contains("M7"), "segment() should throw M7 stub");
+        // M7b: segment() is now implemented — must return non-empty token list
+        assertFalse(t.segment("hello").isEmpty(),
+                "segment() should return tokens (M7b implemented)");
     }
 }

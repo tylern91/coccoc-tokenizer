@@ -3,6 +3,8 @@ package com.coccoc;
 import com.coccoc.internal.bigram.BigramScores;
 import com.coccoc.internal.io.DictReader;
 import com.coccoc.internal.trie.MultitermTrie;
+import com.coccoc.internal.segment.Segmenter;
+import com.coccoc.internal.lang.VnLangTool;
 import com.coccoc.internal.trie.SyllableTrie;
 
 import java.io.IOException;
@@ -20,7 +22,7 @@ import java.util.List;
  * artifact without changing any call sites.
  *
  * Lifecycle: singleton per dict-path, lazily initialized via getInstance().
- * All segment*() methods throw UnsupportedOperationException until M7 lands.
+ * segment() is implemented in M7b (NORMAL mode) via the pure-Java Segmenter.
  */
 public class Tokenizer {
 
@@ -41,6 +43,7 @@ public class Tokenizer {
     // Nullable until M6: bigram.bin may not be bundled in the classpath dicts JAR.
     private final BigramScores  bigramScores;
     private final String        dictPath;
+    private final Segmenter     segmenter;
 
     // -----------------------------------------------------------------------
     // Singleton factories
@@ -97,6 +100,8 @@ public class Tokenizer {
         }
         InputStream bigramIn = cl.getResourceAsStream(CLASSPATH_DICTS + "/bigram.bin");
         this.bigramScores = bigramIn != null ? DictReader.readBigram(bigramIn, "bigram.bin") : null;
+        VnLangTool.initSimple();
+        this.segmenter    = new Segmenter(this.multitermTrie);
         this.dictPath     = CLASSPATH_DICT_PATH;
     }
 
@@ -108,6 +113,8 @@ public class Tokenizer {
         Path bigramPath = dir.resolve("bigram.bin");
         this.bigramScores  = Files.exists(bigramPath) ? DictReader.readBigram(bigramPath) : null;
         this.dictPath      = dictPath;
+        VnLangTool.initSimple();
+        this.segmenter     = new Segmenter(this.multitermTrie);
     }
 
     private static InputStream requireResource(ClassLoader cl, String name) throws IOException {
@@ -122,7 +129,7 @@ public class Tokenizer {
     // -----------------------------------------------------------------------
 
     public List<Token> segment(String text, TokenizeOption option, boolean keepPunctuation) {
-        throw new UnsupportedOperationException("Tokenizer not yet implemented (M7)");
+        return segmenter.segment(text);
     }
 
     // -----------------------------------------------------------------------
@@ -130,7 +137,7 @@ public class Tokenizer {
     // -----------------------------------------------------------------------
 
     public ArrayList<Token> segment(String text, boolean forTransforming, int tokenizeOption, boolean keepPuncts) {
-        throw new UnsupportedOperationException("Tokenizer not yet implemented (M7)");
+        return new ArrayList<>(segmenter.segment(text));
     }
 
     public ArrayList<Token> segment(String text, boolean forTransforming, int tokenizeOption) {
