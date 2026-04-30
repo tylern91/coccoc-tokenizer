@@ -90,4 +90,18 @@ class SegmenterTest {
         assertEquals("world", tokens.get(2).getText());
         assertEquals(Token.Type.WORD,  tokens.get(2).getType());
     }
+
+    // M7c — multi-syllable Vietnamese: space (0x20) is a valid trie edge
+    @Test
+    void segment_multiSyllableVietnamese_spaceEdge_returnsSingleToken() {
+        // Build a trie with "xin chao" as one entry (ASCII approximation avoids NFD issues)
+        TriePacker.HashNode root = TriePacker.buildHashTrie(new String[]{"xin chao"});
+        MultitermTrie trie = TriePacker.pack(root);
+        Segmenter seg = new Segmenter(trie);
+        List<Token> tokens = seg.segment("xin chao");
+        // space-edge trie match should return one WORD, not [WORD, SPACE, WORD]
+        assertEquals(1, tokens.size());
+        assertEquals("xin chao", tokens.get(0).getText());
+        assertEquals(Token.Type.WORD, tokens.get(0).getType());
+    }
 }
