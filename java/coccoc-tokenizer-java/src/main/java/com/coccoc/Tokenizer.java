@@ -6,6 +6,8 @@ import com.coccoc.internal.trie.MultitermTrie;
 import com.coccoc.internal.trie.SyllableTrie;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,18 +29,43 @@ public class Tokenizer {
     public static final int TOKENIZE_HOST   = 1;
     public static final int TOKENIZE_URL    = 2;
 
+    private static final String CLASSPATH_DICTS     = "com/coccoc/dicts";
+    // Sentinel used as initializedDictPath when loaded from classpath.
+    private static final String CLASSPATH_DICT_PATH = "classpath:" + CLASSPATH_DICTS;
+
     private static volatile Tokenizer instance;
     private static String initializedDictPath;
 
     private final MultitermTrie multitermTrie;
     private final SyllableTrie  syllableTrie;
+    // Nullable until M6: bigram.bin may not be bundled in the classpath dicts JAR.
     private final BigramScores  bigramScores;
     private final String        dictPath;
 
     // -----------------------------------------------------------------------
-    // Singleton factory
+    // Singleton factories
     // -----------------------------------------------------------------------
 
+    /**
+     * Load dict files from the bundled classpath resources under
+     * {@code com/coccoc/dicts/} (packaged in {@code coccoc-tokenizer-java-dicts}).
+     * bigram.bin is optional — absent if the dicts JAR omits it.
+     */
+    public static synchronized Tokenizer getInstance() throws IOException {
+        if (instance == null) {
+            instance = new Tokenizer();
+            initializedDictPath = CLASSPATH_DICT_PATH;
+        } else if (!CLASSPATH_DICT_PATH.equals(initializedDictPath)) {
+            throw new IllegalStateException(
+                    "Tokenizer already initialized with dictPath=" + initializedDictPath);
+        }
+        return instance;
+    }
+
+    /**
+     * Load dict files from the given filesystem directory.
+     * bigram.bin is optional — loaded only if the file exists in the directory.
+     */
     public static synchronized Tokenizer getInstance(String dictPath) throws IOException {
         if (instance == null) {
             instance = new Tokenizer(dictPath);
@@ -56,12 +83,38 @@ public class Tokenizer {
         initializedDictPath = null;
     }
 
+    // -----------------------------------------------------------------------
+    // Constructors
+    // -----------------------------------------------------------------------
+
+    /** Load from classpath resources (called by no-arg getInstance()). */
+    private Tokenizer() throws IOException {
+        ClassLoader cl = Tokenizer.class.getClassLoader();
+        try (InputStream mt = requireResource(cl, "multiterm.bin");
+             InputStream sy = requireResource(cl, "syllable.bin")) {
+            this.multitermTrie = DictReader.readMultiterm(mt, "multiterm.bin");
+            this.syllableTrie  = DictReader.readSyllable(sy,  "syllable.bin");
+        }
+        InputStream bigramIn = cl.getResourceAsStream(CLASSPATH_DICTS + "/bigram.bin");
+        this.bigramScores = bigramIn != null ? DictReader.readBigram(bigramIn, "bigram.bin") : null;
+        this.dictPath     = CLASSPATH_DICT_PATH;
+    }
+
+    /** Load from a filesystem directory (called by getInstance(String)). */
     Tokenizer(String dictPath) throws IOException {
         Path dir = Path.of(dictPath);
         this.multitermTrie = DictReader.readMultiterm(dir.resolve("multiterm.bin"));
         this.syllableTrie  = DictReader.readSyllable(dir.resolve("syllable.bin"));
-        this.bigramScores  = DictReader.readBigram(dir.resolve("bigram.bin"));
+        Path bigramPath = dir.resolve("bigram.bin");
+        this.bigramScores  = Files.exists(bigramPath) ? DictReader.readBigram(bigramPath) : null;
         this.dictPath      = dictPath;
+    }
+
+    private static InputStream requireResource(ClassLoader cl, String name) throws IOException {
+        InputStream in = cl.getResourceAsStream(CLASSPATH_DICTS + "/" + name);
+        if (in == null)
+            throw new IOException("missing classpath resource: " + CLASSPATH_DICTS + "/" + name);
+        return in;
     }
 
     // -----------------------------------------------------------------------

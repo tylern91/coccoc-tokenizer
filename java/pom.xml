@@ -23,14 +23,19 @@
   </licenses>
 
   <modules>
-    <module>coccoc-tokenizer-java</module>
     <module>coccoc-tokenizer-java-dicts</module>
+    <module>coccoc-tokenizer-java</module>
   </modules>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>21</maven.compiler.release>
     <junit.version>5.11.4</junit.version>
+    <!-- Override on CLI: mvn -Dexec.plugin.version=... -->
+    <exec.plugin.version>3.5.0</exec.plugin.version>
+    <!-- Path to raw dict sources used by regenerate-dicts profile.
+         Defaults to the sibling dicts/ directory in this repository. -->
+    <dicts.source.dir>${maven.multiModuleProjectDirectory}/../dicts</dicts.source.dir>
   </properties>
 
   <dependencyManagement>
@@ -66,8 +71,21 @@
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>3.5.2</version>
+          <configuration>
+            <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.4.2</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>${exec.plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
