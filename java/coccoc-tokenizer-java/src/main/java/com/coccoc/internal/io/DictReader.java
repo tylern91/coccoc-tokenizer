@@ -5,6 +5,7 @@ import com.coccoc.internal.trie.MultitermTrie;
 import com.coccoc.internal.trie.SyllableTrie;
 
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
@@ -20,68 +21,87 @@ import java.util.zip.CRC32;
  */
 public final class DictReader {
 
+    // Upper bounds to prevent heap exhaustion from a crafted-but-CRC-valid .bin.
+    private static final int MAX_ALPHA_SIZE  = 0x11_0000; // full Unicode range
+    private static final int MAX_NODE_COUNT  = 10_000_000;
+    private static final int MAX_ROW_COUNT   = 1_000_000;
+    private static final int MAX_NNZ         = 10_000_000;
+
     private DictReader() {}
 
     public static MultitermTrie readMultiterm(Path file) throws IOException {
         byte[] bytes = loadAndVerify(file, "CCMT");
-        // Parse payload: buf positioned right after magic+version (byte offset 8)
         ByteBuffer buf = ByteBuffer.wrap(bytes, 8, bytes.length - 8).order(ByteOrder.LITTLE_ENDIAN);
+        try {
+            int alphaSize = buf.getInt();
+            checkSize(alphaSize, MAX_ALPHA_SIZE, "alphaSize");
+            int[] codepoints = new int[alphaSize];
+            for (int i = 0; i < alphaSize; i++) codepoints[i] = buf.getInt();
 
-        int alphaSize = buf.getInt();
-        int[] codepoints = new int[alphaSize];
-        for (int i = 0; i < alphaSize; i++) codepoints[i] = buf.getInt();
+            int sz = buf.getInt();
+            checkSize(sz, MAX_NODE_COUNT, "node count");
+            int[]   base   = new int[sz];
+            int[]   parent = new int[sz];
+            float[] weight = new float[sz];
+            byte[]  flags  = new byte[sz];
+            for (int i = 0; i < sz; i++) base[i]   = buf.getInt();
+            for (int i = 0; i < sz; i++) parent[i] = buf.getInt();
+            for (int i = 0; i < sz; i++) weight[i] = buf.getFloat();
+            buf.get(flags);
 
-        int sz = buf.getInt();
-        int[]   base   = new int[sz];
-        int[]   parent = new int[sz];
-        float[] weight = new float[sz];
-        byte[]  flags  = new byte[sz];
-        for (int i = 0; i < sz; i++) base[i]   = buf.getInt();
-        for (int i = 0; i < sz; i++) parent[i] = buf.getInt();
-        for (int i = 0; i < sz; i++) weight[i] = buf.getFloat();
-        buf.get(flags);
-
-        return new MultitermTrie(buildCharMap(codepoints), base, parent, weight, flags);
+            return new MultitermTrie(buildCharMap(codepoints), base, parent, weight, flags);
+        } catch (BufferUnderflowException e) {
+            throw new IOException("truncated payload in " + file.getFileName(), e);
+        }
     }
 
     public static SyllableTrie readSyllable(Path file) throws IOException {
         byte[] bytes = loadAndVerify(file, "CCSY");
         ByteBuffer buf = ByteBuffer.wrap(bytes, 8, bytes.length - 8).order(ByteOrder.LITTLE_ENDIAN);
+        try {
+            int alphaSize = buf.getInt();
+            checkSize(alphaSize, MAX_ALPHA_SIZE, "alphaSize");
+            int[] codepoints = new int[alphaSize];
+            for (int i = 0; i < alphaSize; i++) codepoints[i] = buf.getInt();
 
-        int alphaSize = buf.getInt();
-        int[] codepoints = new int[alphaSize];
-        for (int i = 0; i < alphaSize; i++) codepoints[i] = buf.getInt();
+            int sz = buf.getInt();
+            checkSize(sz, MAX_NODE_COUNT, "node count");
+            int[]   base   = new int[sz];
+            int[]   parent = new int[sz];
+            float[] weight = new float[sz];
+            int[]   index  = new int[sz];
+            for (int i = 0; i < sz; i++) base[i]   = buf.getInt();
+            for (int i = 0; i < sz; i++) parent[i] = buf.getInt();
+            for (int i = 0; i < sz; i++) weight[i] = buf.getFloat();
+            for (int i = 0; i < sz; i++) index[i]  = buf.getInt();
+            // syllableCount field read and discarded; bigram.bin carries its own rowCount
 
-        int sz = buf.getInt();
-        int[]   base   = new int[sz];
-        int[]   parent = new int[sz];
-        float[] weight = new float[sz];
-        int[]   index  = new int[sz];
-        for (int i = 0; i < sz; i++) base[i]   = buf.getInt();
-        for (int i = 0; i < sz; i++) parent[i] = buf.getInt();
-        for (int i = 0; i < sz; i++) weight[i] = buf.getFloat();
-        for (int i = 0; i < sz; i++) index[i]  = buf.getInt();
-        // syllableCount field read and discarded; bigram.bin carries its own rowCount
-        // buf.getInt(); // syllableCount
-
-        return new SyllableTrie(buildCharMap(codepoints), base, parent, index, weight);
+            return new SyllableTrie(buildCharMap(codepoints), base, parent, index, weight);
+        } catch (BufferUnderflowException e) {
+            throw new IOException("truncated payload in " + file.getFileName(), e);
+        }
     }
 
     public static BigramScores readBigram(Path file) throws IOException {
         byte[] bytes = loadAndVerify(file, "CCBG");
         ByteBuffer buf = ByteBuffer.wrap(bytes, 8, bytes.length - 8).order(ByteOrder.LITTLE_ENDIAN);
+        try {
+            int n = buf.getInt();            // rowCount
+            checkSize(n, MAX_ROW_COUNT, "rowCount");
+            int[] rowOffset = new int[n + 1];
+            for (int i = 0; i <= n; i++) rowOffset[i] = buf.getInt();
 
-        int n = buf.getInt();            // rowCount
-        int[] rowOffset = new int[n + 1];
-        for (int i = 0; i <= n; i++) rowOffset[i] = buf.getInt();
+            int totalNnz = rowOffset[n];
+            checkSize(totalNnz, MAX_NNZ, "nnz count");
+            int[]   colIndex = new int[totalNnz];
+            float[] value    = new float[totalNnz];
+            for (int i = 0; i < totalNnz; i++) colIndex[i] = buf.getInt();
+            for (int i = 0; i < totalNnz; i++) value[i]    = buf.getFloat();
 
-        int totalNnz = rowOffset[n];
-        int[]   colIndex = new int[totalNnz];
-        float[] value    = new float[totalNnz];
-        for (int i = 0; i < totalNnz; i++) colIndex[i] = buf.getInt();
-        for (int i = 0; i < totalNnz; i++) value[i]    = buf.getFloat();
-
-        return new BigramScores(rowOffset, colIndex, value);
+            return new BigramScores(rowOffset, colIndex, value);
+        } catch (BufferUnderflowException e) {
+            throw new IOException("truncated payload in " + file.getFileName(), e);
+        }
     }
 
     // =========================================================================
@@ -116,14 +136,23 @@ public final class DictReader {
     }
 
     /** Reconstruct charMap (codepoint→alphabet-index) from on-disk codepoints array. */
-    static int[] buildCharMap(int[] codepoints) {
+    static int[] buildCharMap(int[] codepoints) throws IOException {
         if (codepoints.length == 0) return new int[0];
         int maxCp = 0;
-        for (int cp : codepoints) if (cp > maxCp) maxCp = cp;
+        for (int cp : codepoints) {
+            if (cp < 0 || cp >= MAX_ALPHA_SIZE)
+                throw new IOException("invalid codepoint in dict: " + cp);
+            if (cp > maxCp) maxCp = cp;
+        }
         int[] charMap = new int[maxCp + 1];
         Arrays.fill(charMap, -1);
         for (int i = 0; i < codepoints.length; i++) charMap[codepoints[i]] = i;
         return charMap;
+    }
+
+    private static void checkSize(int n, int max, String what) throws IOException {
+        if (n < 0 || n > max)
+            throw new IOException("truncated: implausible " + what + ": " + n);
     }
 
     private static int leInt(byte[] b, int off) {

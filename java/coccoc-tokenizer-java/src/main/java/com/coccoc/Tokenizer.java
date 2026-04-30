@@ -51,7 +51,7 @@ public class Tokenizer {
     }
 
     /** Package-private: resets singleton state between tests. */
-    static void resetForTesting() {
+    static synchronized void resetForTesting() {
         instance = null;
         initializedDictPath = null;
     }

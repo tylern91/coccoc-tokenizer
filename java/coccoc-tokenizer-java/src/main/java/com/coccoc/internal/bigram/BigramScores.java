@@ -1,5 +1,7 @@
 package com.coccoc.internal.bigram;
 
+import java.util.Arrays;
+
 /**
  * CSR-format bigram frequency scores loaded from bigram.bin.
  * Populated by DictReader; score lookup is M6.
@@ -15,8 +17,8 @@ public final class BigramScores {
         this.value     = value;
     }
 
-    public int[]   rowOffsets() { return rowOffset; }
-    public int[]   colIndex()   { return colIndex; }
-    public float[] values()     { return value; }
+    public int[]   rowOffsets() { return Arrays.copyOf(rowOffset, rowOffset.length); }
+    public int[]   colIndex()   { return Arrays.copyOf(colIndex,  colIndex.length);  }
+    public float[] values()     { return Arrays.copyOf(value,     value.length);     }
     public int     rowCount()   { return rowOffset.length - 1; }
 }
