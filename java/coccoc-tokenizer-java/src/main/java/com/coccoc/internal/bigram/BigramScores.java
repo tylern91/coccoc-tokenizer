@@ -7,7 +7,7 @@ import java.util.Arrays;
  * Populated by DictReader; score lookup is M6.
  */
 public final class BigramScores {
-    public static final float DEFAULT_SCORE = -10_000.0f;
+    public static final float DEFAULT_SCORE = 0.0f;
 
     private final int[]   rowOffset;
     private final int[]   colIndex;

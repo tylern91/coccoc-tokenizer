@@ -40,4 +40,10 @@ class BigramScoresTest {
     void getScore_negativeRowIndex_throwsArrayIndexOutOfBounds() {
         assertThrows(ArrayIndexOutOfBoundsException.class, () -> scores.getScore(-1, 0));
     }
+
+    @Test
+    void defaultScore_isZero() {
+        // C++ contributes 0 for absent pairs (additive bonus model, not penalty)
+        assertEquals(0.0f, BigramScores.DEFAULT_SCORE, 1e-6f);
+    }
 }
