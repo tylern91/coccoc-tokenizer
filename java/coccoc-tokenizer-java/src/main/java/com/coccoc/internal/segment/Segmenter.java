@@ -2,7 +2,9 @@ package com.coccoc.internal.segment;
 
 import com.coccoc.Token;
 import com.coccoc.internal.lang.VnLangTool;
+import com.coccoc.internal.bigram.BigramScores;
 import com.coccoc.internal.trie.MultitermTrie;
+import com.coccoc.internal.trie.SyllableTrie;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,9 +19,18 @@ import java.util.List;
 public final class Segmenter {
 
     private final MultitermTrie multitermTrie;
+    private final SyllableTrie  syllableTrie;   // null if sticky segmentation not available
+    private final BigramScores  bigramScores;   // null if not loaded
 
     public Segmenter(MultitermTrie multitermTrie) {
+        this(multitermTrie, null, null);
+    }
+
+    public Segmenter(MultitermTrie multitermTrie, SyllableTrie syllableTrie,
+                     BigramScores bigramScores) {
         this.multitermTrie = multitermTrie;
+        this.syllableTrie  = syllableTrie;
+        this.bigramScores  = bigramScores;
     }
 
     public List<Token> segment(String text) {
@@ -83,6 +94,68 @@ public final class Segmenter {
             tokens.add(new Token(spanText, type, span[0], span[1]));
         }
         return tokens;
+    }
+
+    /**
+     * Splits a sticky (no-spaces) codepoint sequence into Vietnamese syllables.
+     * Runs Viterbi DP on the SyllableTrie; single-char fallback for unknown chars.
+     * Returns the list of syllable strings in order.
+     */
+    public List<String> splitSyllables(String text) {
+        if (syllableTrie == null) return Collections.singletonList(text);
+        int[] cps = VnLangTool.normalizeNfd(text.codePoints().toArray());
+        int n = cps.length;
+        if (n == 0) return Collections.emptyList();
+
+        float[] best  = new float[n + 1];
+        int[]   trace = new int[n + 1];
+        int[]   sylAt = new int[n + 1]; // syllable index ending at each position (-1 if none)
+        Arrays.fill(best, Float.NEGATIVE_INFINITY);
+        Arrays.fill(trace, -1);
+        Arrays.fill(sylAt, -1);
+        best[0] = 0.0f;
+
+        for (int i = 0; i < n; i++) {
+            if (best[i] == Float.NEGATIVE_INFINITY) continue;
+
+            int node = 0;
+            for (int j = i; j < n; j++) {
+                node = syllableTrie.findChild(node, cps[j]);
+                if (node == -1) break;
+                boolean isSyl = syllableTrie.getIndex(node) >= 0
+                             || syllableTrie.getWeight(node) > 0.0f;
+                if (isSyl) {
+                    float w = best[i] + syllableTrie.getWeight(node);
+                    int curIdx = syllableTrie.getIndex(node);
+                    // Add bigram bonus when both syllable indices are known
+                    if (bigramScores != null && sylAt[i] >= 0 && curIdx >= 0) {
+                        w += bigramScores.getScore(sylAt[i], curIdx);
+                    }
+                    if (w > best[j + 1]) {
+                        best[j + 1] = w;
+                        trace[j + 1] = i;
+                        sylAt[j + 1]  = curIdx;
+                    }
+                }
+            }
+
+            // Single-char fallback with heavy penalty
+            if (i + 1 <= n && best[i + 1] == Float.NEGATIVE_INFINITY) {
+                best[i + 1] = best[i] - 1_000.0f;
+                trace[i + 1] = i;
+                sylAt[i + 1]  = -1;
+            }
+        }
+
+        // Traceback
+        List<String> result = new ArrayList<>();
+        for (int pos = n; pos > 0; ) {
+            int start = trace[pos];
+            result.add(new String(cps, start, pos - start));
+            pos = start;
+        }
+        Collections.reverse(result);
+        return result;
     }
 
     private Token.Type classifySpan(int[] cps, int from, int to) {
