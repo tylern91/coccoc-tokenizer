@@ -12,14 +12,6 @@ $ cmake ..
 # make install
 ```
 
-To include the legacy JNI-based Java binding (requires a native build):
-
-```
-$ mkdir build && cd build
-$ cmake -DBUILD_JAVA=1 ..
-# make install
-```
-
 For the standalone pure-Java Maven module (no native libraries required), see [Using the Java library](#using-the-java-library).
 
 To include python bindings - install [cython](https://pypi.org/project/Cython/) package and compile wrapper code (only Python3 is supported):
@@ -39,7 +31,7 @@ $ dpkg-buildpackage <options> # from source tree root
 If you want to build and install everything into your sandbox, you can use something like this (it will build everything and install into ~/.local, which is considered as a standard sandbox PREFIX by many applications and frameworks):
 ```
 $ mdkir build && cd build
-$ cmake -DBUILD_JAVA=1 -DBUILD_PYTHON=1 -DCMAKE_INSTALL_PREFIX=~/.local ..
+$ cmake -DBUILD_PYTHON=1 -DCMAKE_INSTALL_PREFIX=~/.local ..
 $ make install
 ```
 
@@ -200,16 +192,6 @@ tokenizer.segmentUrlToStringList("https://thegioididong.vn");
 ```
 
 `Tokenizer` is a per-dict-path singleton and is safe to call concurrently from multiple threads.
-
-### Legacy JNI binding
-
-The CMake `BUILD_JAVA=1` flag builds the original JNI-based binding that links against the C++ shared library:
-
-```
-$ LD_LIBRARY_PATH=build java -cp build/coccoc-tokenizer.jar com.coccoc.Tokenizer "một câu văn tiếng Việt"
-```
-
-`LD_LIBRARY_PATH` must point to a directory containing `libcoccoc_tokenizer_jni.so`. If you have installed the deb package or run `make install`, the shared library is on the system path and `LD_LIBRARY_PATH` is not needed.
 
 ## Using Python bindings
 
