@@ -47,9 +47,9 @@ class TokenizerLoadTest {
         Tokenizer tok = Tokenizer.getInstance(tempDir.toString());
 
         assertNotNull(tok, "getInstance should return a non-null Tokenizer");
-        // segment() stays M7 — verify it still signals that
-        assertThrows(UnsupportedOperationException.class,
-                () -> tok.segment("xin chao"));
+        // segment() is implemented (M7b) — verify it returns a non-empty result
+        assertFalse(tok.segment("xin chao").isEmpty(),
+                "segment() should return tokens for non-empty input");
     }
     @Test
     void getInstance_samePathReturnsSameInstance_differentPathThrows() throws IOException {
