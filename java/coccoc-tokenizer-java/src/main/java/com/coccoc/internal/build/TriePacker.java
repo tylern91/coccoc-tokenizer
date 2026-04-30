@@ -58,8 +58,9 @@ public final class TriePacker {
     // -----------------------------------------------------------------------
 
     public static MultitermTrie pack(HashNode root) {
-        List<HashNode> pool = root_pool != null ? root_pool : flattenBFS(root);
-        return packFromPool(pool);
+        if (root_pool == null)
+            throw new IllegalStateException("call buildHashTrie() before pack()");
+        return packFromPool(root_pool);
     }
 
     public static MultitermTrie packFromPool(List<HashNode> pool) {
@@ -208,23 +209,5 @@ public final class TriePacker {
         }
 
         return res;
-    }
-
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
-
-    private static List<HashNode> flattenBFS(HashNode root) {
-        List<HashNode> result = new ArrayList<>();
-        Queue<HashNode> queue = new ArrayDeque<>();
-        queue.add(root);
-        while (!queue.isEmpty()) {
-            HashNode node = queue.poll();
-            result.add(node);
-            for (int childIdx : node.children.values()) {
-                throw new IllegalStateException("Use buildHashTrie() which retains the pool list");
-            }
-        }
-        return result;
     }
 }

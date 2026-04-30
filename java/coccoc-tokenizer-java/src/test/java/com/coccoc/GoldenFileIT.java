@@ -45,7 +45,7 @@ class GoldenFileIT {
     @BeforeEach
     @AfterEach
     void resetSingleton() {
-        Tokenizer.resetForTesting();
+        TokenizerTestHelper.resetForTesting();
     }
 
     /**

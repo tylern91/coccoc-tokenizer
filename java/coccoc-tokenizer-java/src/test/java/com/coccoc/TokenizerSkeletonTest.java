@@ -12,7 +12,7 @@ class TokenizerSkeletonTest {
 
     @BeforeEach
     void resetSingleton() {
-        Tokenizer.resetForTesting();
+        TokenizerTestHelper.resetForTesting();
     }
 
     @Test

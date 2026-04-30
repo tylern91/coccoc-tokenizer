@@ -41,7 +41,7 @@ class TokenizerClasspathLoadIT {
     @BeforeEach
     @AfterEach
     void resetSingleton() {
-        Tokenizer.resetForTesting();
+        TokenizerTestHelper.resetForTesting();
     }
 
     @Test

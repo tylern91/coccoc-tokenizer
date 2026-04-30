@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * CSR-format bigram frequency scores loaded from bigram.bin.
- * Populated by DictReader; score lookup is M6.
+ * Populated by DictReader.
  */
 public final class BigramScores {
     public static final float DEFAULT_SCORE = 0.0f;
