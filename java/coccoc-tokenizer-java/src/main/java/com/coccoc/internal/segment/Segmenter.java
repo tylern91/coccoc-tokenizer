@@ -96,27 +96,50 @@ public final class Segmenter {
         int[] trace = new int[n + 1];
         Arrays.fill(trace, -1);
 
+        // shouldGo mirrors the C++ `should_go` flag: only scan from positions that are
+        // explicit token-boundary anchors, not interior positions of an ongoing match.
+        boolean[] shouldGo = new boolean[n + 1];
+        shouldGo[0] = true;
+
         for (int i = 0; i < n; i++) {
             if (best[i] == Float.NEGATIVE_INFINITY) continue;
 
-            // Trie matches starting at i
-            int node = 0;
-            for (int j = i; j < n; j++) {
-                node = multitermTrie.findChild(node, cps[j]);
-                if (node == -1) break;
-                if (multitermTrie.isEnding(node)) {
-                    float w = best[i] + multitermTrie.getWeight(node);
-                    if (w > best[j + 1]) {
-                        best[j + 1] = w;
-                        trace[j + 1] = i;
+            if (shouldGo[i]) {
+                // Trie scan: find all multi-char matches starting at i.
+                // Track the furthest position that actually updated best[] so we
+                // can set shouldGo only at that boundary, preventing interior
+                // positions from being re-scanned (C++ should_go semantics).
+                int node = 0;
+                int furthestUpdated = -1;
+                for (int j = i; j < n; j++) {
+                    node = multitermTrie.findChild(node, VnLangTool.lower(cps[j]));
+                    if (node == -1) break;
+                    if (j > i && multitermTrie.isEnding(node)) {
+                        float w = best[i] + multitermTrie.getWeight(node);
+                        if (w > best[j + 1]) {
+                            best[j + 1] = w;
+                            trace[j + 1] = i;
+                            furthestUpdated = j;
+                        }
                     }
                 }
-            }
 
-            // Single-char fallback: cover i+1 if still unreachable
-            if (i + 1 <= n && best[i + 1] == Float.NEGATIVE_INFINITY) {
-                best[i + 1] = best[i];
-                trace[i + 1] = i;
+                if (furthestUpdated >= 0) {
+                    shouldGo[furthestUpdated + 1] = true;
+                } else {
+                    // No multi-char match: single-char step, scan may continue from i+1.
+                    if (i + 1 <= n && best[i + 1] == Float.NEGATIVE_INFINITY) {
+                        best[i + 1] = best[i];
+                        trace[i + 1] = i;
+                    }
+                    shouldGo[i + 1] = true;
+                }
+            } else {
+                // Interior position: carry score forward but do not scan trie.
+                if (i + 1 <= n && best[i + 1] == Float.NEGATIVE_INFINITY) {
+                    best[i + 1] = best[i];
+                    trace[i + 1] = i;
+                }
             }
         }
 
