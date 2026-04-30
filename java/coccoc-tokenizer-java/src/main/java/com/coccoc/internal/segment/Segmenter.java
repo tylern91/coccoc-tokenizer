@@ -41,7 +41,15 @@ public final class Segmenter {
     public List<Token> segment(String text, TokenizeOption option, boolean keepPunct) {
         if (option == TokenizeOption.HOST) return segmentHost(text.codePoints().toArray());
         if (option == TokenizeOption.URL)  return segmentUrl(text);
-        return segment(text); // NORMAL
+        List<Token> raw = segment(text);
+        if (keepPunct) {
+            return raw.stream()
+                    .filter(t -> t.getType() != Token.Type.SPACE)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        return raw.stream()
+                .filter(t -> t.getType() != Token.Type.SPACE && t.getType() != Token.Type.PUNCT)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     // HOST mode: split on '.', return each non-empty label as WORD

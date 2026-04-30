@@ -177,4 +177,39 @@ class SegmenterTest {
             assertEquals(ord, tokens.get(0).getText());
         }
     }
+    // M8a — keepPunct=false removes SPACE and PUNCT from NORMAL mode result
+    @Test
+    void segment_normalMode_keepPunctFalse_removesSpaceAndPunct() {
+        Segmenter seg = new Segmenter(simpleTrie());
+        List<Token> tokens = seg.segment("hello!", com.coccoc.TokenizeOption.NORMAL, false);
+        assertTrue(tokens.stream().noneMatch(t ->
+                t.getType() == Token.Type.SPACE || t.getType() == Token.Type.PUNCT),
+            "keepPunct=false must remove SPACE and PUNCT; got: " + tokens);
+        assertEquals(1, tokens.size());
+        assertEquals("hello", tokens.get(0).getText());
+    }
+
+    // M8b — keepPunct=false removes SPACE between words
+    @Test
+    void segment_normalMode_keepPunctFalse_removesSpaceBetweenWords() {
+        Segmenter seg = new Segmenter(simpleTrie());
+        List<Token> tokens = seg.segment("a b", com.coccoc.TokenizeOption.NORMAL, false);
+        assertEquals(2, tokens.size(), "keepPunct=false should leave only WORD tokens; got: " + tokens);
+        assertEquals("a", tokens.get(0).getText());
+        assertEquals("b", tokens.get(1).getText());
+    }
+
+    // M8c — keepPunct=true keeps PUNCT but removes SPACE
+    @Test
+    void segment_normalMode_keepPunctTrue_keepsPunctRemovesSpace() {
+        Segmenter seg = new Segmenter(simpleTrie());
+        List<Token> tokens = seg.segment("a b!", com.coccoc.TokenizeOption.NORMAL, true);
+        assertTrue(tokens.stream().noneMatch(t -> t.getType() == Token.Type.SPACE),
+            "keepPunct=true must still remove SPACE; got: " + tokens);
+        long punctCount = tokens.stream().filter(t -> t.getType() == Token.Type.PUNCT).count();
+        assertEquals(1, punctCount, "keepPunct=true must preserve PUNCT tokens; got: " + tokens);
+        assertEquals(3, tokens.size(), "expected WORD('a'), WORD('b'), PUNCT('!'); got: " + tokens);
+    }
+
+
 }
