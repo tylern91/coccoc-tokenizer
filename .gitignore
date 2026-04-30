@@ -5,3 +5,4 @@ python/*.cpp
 python/*.html
 
 .worktrees
+.serena/
