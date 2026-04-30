@@ -1,6 +1,7 @@
 package com.coccoc.internal.segment;
 
 import com.coccoc.Token;
+import com.coccoc.TokenizeOption;
 import com.coccoc.internal.lang.VnLangTool;
 import com.coccoc.internal.bigram.BigramScores;
 import com.coccoc.internal.trie.MultitermTrie;
@@ -31,6 +32,52 @@ public final class Segmenter {
         this.multitermTrie = multitermTrie;
         this.syllableTrie  = syllableTrie;
         this.bigramScores  = bigramScores;
+    }
+
+    public List<Token> segment(String text, TokenizeOption option, boolean keepPunct) {
+        if (option == TokenizeOption.HOST) return segmentHost(text.codePoints().toArray());
+        if (option == TokenizeOption.URL)  return segmentUrl(text);
+        return segment(text); // NORMAL
+    }
+
+    // HOST mode: split on '.', return each non-empty label as WORD
+    private List<Token> segmentHost(int[] cps) {
+        List<Token> tokens = new ArrayList<>();
+        int start = 0;
+        for (int i = 0; i <= cps.length; i++) {
+            if (i == cps.length || cps[i] == '.') {
+                if (i > start) {
+                    String part = new String(cps, start, i - start);
+                    tokens.add(new Token(part, Token.Type.WORD, start, i));
+                }
+                start = i + 1;
+            }
+        }
+        return tokens;
+    }
+
+    // URL mode: strip http(s):// scheme, then segment each alphanumeric run
+    private List<Token> segmentUrl(String text) {
+        // Strip well-known URL scheme prefixes
+        String stripped = text;
+        if (stripped.startsWith("https://")) stripped = stripped.substring(8);
+        else if (stripped.startsWith("http://")) stripped = stripped.substring(7);
+
+        int[] cps = stripped.codePoints().toArray();
+        List<Token> tokens = new ArrayList<>();
+        int start = 0;
+        for (int i = 0; i <= cps.length; i++) {
+            boolean isSep = (i == cps.length) || !VnLangTool.isAlphanumeric(cps[i]);
+            if (isSep) {
+                if (i > start) {
+                    String part = new String(cps, start, i - start);
+                    Token.Type type = classifySpan(cps, start, i);
+                    tokens.add(new Token(part, type, start, i));
+                }
+                start = i + 1;
+            }
+        }
+        return tokens;
     }
 
     public List<Token> segment(String text) {
