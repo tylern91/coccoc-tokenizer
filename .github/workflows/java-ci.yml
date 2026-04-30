@@ -1,11 +1,8 @@
 name: Java CI
 
 on:
-  push:
-    paths:
-      - "java/**"
-      - ".github/workflows/java-ci.yml"
   pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - "java/**"
       - ".github/workflows/java-ci.yml"
