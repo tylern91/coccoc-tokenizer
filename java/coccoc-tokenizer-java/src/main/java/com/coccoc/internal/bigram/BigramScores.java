@@ -7,6 +7,8 @@ import java.util.Arrays;
  * Populated by DictReader; score lookup is M6.
  */
 public final class BigramScores {
+    public static final float DEFAULT_SCORE = -10_000.0f;
+
     private final int[]   rowOffset;
     private final int[]   colIndex;
     private final float[] value;
@@ -15,6 +17,13 @@ public final class BigramScores {
         this.rowOffset = rowOffset;
         this.colIndex  = colIndex;
         this.value     = value;
+    }
+
+    public float getScore(int i, int j) {
+        int start = rowOffset[i];
+        int end   = rowOffset[i + 1];
+        int pos   = Arrays.binarySearch(colIndex, start, end, j);
+        return pos >= 0 ? value[pos] : DEFAULT_SCORE;
     }
 
     public int[]   rowOffsets() { return Arrays.copyOf(rowOffset, rowOffset.length); }
