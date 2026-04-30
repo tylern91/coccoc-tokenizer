@@ -30,6 +30,18 @@ class GoldenFileIT {
         GoldenFileIT.class.getClassLoader()
             .getResource("com/coccoc/dicts/multiterm.bin") != null;
 
+    /** If REQUIRE_DICTS=1 and dicts are absent, hard-fail instead of silently skipping. */
+    private static void assumeDictsAvailable(String context) {
+        if (!DICTS_AVAILABLE && "1".equals(System.getenv("REQUIRE_DICTS"))) {
+            org.junit.jupiter.api.Assertions.fail(
+                "REQUIRE_DICTS=1 is set but com/coccoc/dicts/multiterm.bin is not on classpath"
+                + " (" + context + ")");
+        }
+        org.junit.jupiter.api.Assumptions.assumeTrue(DICTS_AVAILABLE,
+            "Skipping: dicts not on classpath — " +
+            "build the dicts module first: mvn package -pl coccoc-tokenizer-java-dicts");
+    }
+
     @BeforeEach
     @AfterEach
     void resetSingleton() {
@@ -51,7 +63,7 @@ class GoldenFileIT {
 
     @Test
     void golden_basicVietnameseSentences() throws IOException {
-        Assumptions.assumeTrue(DICTS_AVAILABLE, "Skipping golden-file: dicts not on classpath");
+        assumeDictsAvailable("golden_basicVietnameseSentences");
         Tokenizer tok = Tokenizer.getInstance();
 
         // Expected values match the Java tokenizer with the bundled multiterm.bin.
@@ -76,7 +88,7 @@ class GoldenFileIT {
 
     @Test
     void golden_postHocRules() throws IOException {
-        Assumptions.assumeTrue(DICTS_AVAILABLE, "Skipping golden-file: dicts not on classpath");
+        assumeDictsAvailable("golden_postHocRules");
         Tokenizer tok = Tokenizer.getInstance();
 
         // Post-hoc rules: C++ also merges NUMBER+% and NUMBER+ordinal → WORD

@@ -24,6 +24,14 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Dicts JAR provides .bin classpath resources for integration tests.
+         Declared test-scope so surefire + failsafe both see multiterm/syllable/bigram. -->
+    <dependency>
+      <groupId>com.coccoc</groupId>
+      <artifactId>coccoc-tokenizer-java-dicts</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -39,9 +47,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
       </plugin>
-      <!-- Integration tests: run *IT.java classes after verify phase.
-           The dicts JAR (containing .bin resources) is added to the classpath
-           so Tokenizer.getInstance() no-arg can load from classpath. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
@@ -53,11 +58,6 @@
             </goals>
           </execution>
         </executions>
-        <configuration>
-          <additionalClasspathElements>
-            <additionalClasspathElement>${project.basedir}/../coccoc-tokenizer-java-dicts/target/coccoc-tokenizer-java-dicts-${project.version}.jar</additionalClasspathElement>
-          </additionalClasspathElements>
-        </configuration>
       </plugin>
     </plugins>
   </build>

@@ -14,6 +14,9 @@ defaults:
   run:
     working-directory: java
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: Build + unit tests
@@ -43,5 +46,7 @@ jobs:
           echo "Dict JAR contents verified."
 
       - name: Integration tests (Tokenizer.getInstance() classpath load)
+        env:
+          REQUIRE_DICTS: "1"
         run: |
           mvn -B -pl coccoc-tokenizer-java failsafe:integration-test failsafe:verify
