@@ -22,7 +22,6 @@ import java.util.List;
  * artifact without changing any call sites.
  *
  * Lifecycle: singleton per dict-path, lazily initialized via getInstance().
- * segment() is implemented in M7b (NORMAL mode) via the pure-Java Segmenter.
  */
 public class Tokenizer {
 
@@ -35,12 +34,13 @@ public class Tokenizer {
     // Sentinel used as initializedDictPath when loaded from classpath.
     private static final String CLASSPATH_DICT_PATH = "classpath:" + CLASSPATH_DICTS;
 
-    private static volatile Tokenizer instance;
+    // Both fields are only ever read/written inside synchronized getInstance() methods.
+    private static Tokenizer instance;
     private static String initializedDictPath;
 
     private final MultitermTrie multitermTrie;
     private final SyllableTrie  syllableTrie;
-    // Nullable until M6: bigram.bin may not be bundled in the classpath dicts JAR.
+    // Nullable: bigram.bin may not be bundled in the classpath dicts JAR.
     private final BigramScores  bigramScores;
     private final String        dictPath;
     private final Segmenter     segmenter;
@@ -78,12 +78,6 @@ public class Tokenizer {
                     "Tokenizer already initialized with dictPath=" + initializedDictPath);
         }
         return instance;
-    }
-
-    /** Package-private: resets singleton state between tests. */
-    static synchronized void resetForTesting() {
-        instance = null;
-        initializedDictPath = null;
     }
 
     // -----------------------------------------------------------------------

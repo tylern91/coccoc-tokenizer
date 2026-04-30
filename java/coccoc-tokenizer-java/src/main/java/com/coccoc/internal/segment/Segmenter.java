@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Pure-Java Viterbi segmenter — NORMAL mode, M7b scope.
+ * Pure-Java Viterbi segmenter.
  * Forward DP over MultitermTrie; single-char fallback for trie misses;
  * consecutive same-type spans merged during traceback.
  */

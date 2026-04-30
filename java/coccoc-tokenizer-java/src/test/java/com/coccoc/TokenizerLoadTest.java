@@ -18,7 +18,7 @@ class TokenizerLoadTest {
 
     @BeforeEach
     void resetSingleton() {
-        Tokenizer.resetForTesting();
+        TokenizerTestHelper.resetForTesting();
     }
 
     /** Writes three minimal synthetic .bin files into dir. */
