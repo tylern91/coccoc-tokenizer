@@ -104,4 +104,24 @@ class SegmenterTest {
         assertEquals("xin chao", tokens.get(0).getText());
         assertEquals(Token.Type.WORD, tokens.get(0).getType());
     }
+
+    // M7d — sticky syllable segmentation via SyllableTrie Viterbi
+    @Test
+    void splitSyllables_knownStickyPhrase_returnsCorrectSyllables() {
+        com.coccoc.internal.trie.SyllableTrie sylTrie =
+            com.coccoc.tools.DictCompileTestSupport.buildSyllableTrie("xin", "chao");
+        // Empty bigram scores (2 rows, no entries)
+        com.coccoc.internal.bigram.BigramScores noScores =
+            new com.coccoc.internal.bigram.BigramScores(
+                new int[]{0, 0, 0}, new int[]{}, new float[]{});
+
+        TriePacker.HashNode root = TriePacker.buildHashTrie(new String[0]);
+        MultitermTrie emptyMt = TriePacker.pack(root);
+        Segmenter seg = new Segmenter(emptyMt, sylTrie, noScores);
+
+        java.util.List<String> syllables = seg.splitSyllables("xinchao");
+        assertEquals(2, syllables.size());
+        assertEquals("xin",  syllables.get(0));
+        assertEquals("chao", syllables.get(1));
+    }
 }
