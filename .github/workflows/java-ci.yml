@@ -23,15 +23,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5.2.0
         with:
           java-version: "21"
           distribution: "temurin"
           cache: "maven"
 
-      - name: Build + unit tests
+      - name: Build + all tests
+        env:
+          REQUIRE_DICTS: "1"
         run: mvn -B verify
 
       - name: Verify dicts JAR contains committed .bin files
@@ -44,9 +46,3 @@ jobs:
           jar tf coccoc-tokenizer-java-dicts/target/coccoc-tokenizer-java-dicts-1.0.0-SNAPSHOT.jar \
             | grep -q "com/coccoc/dicts/syllable.bin"
           echo "Dict JAR contents verified."
-
-      - name: Integration tests (Tokenizer.getInstance() classpath load)
-        env:
-          REQUIRE_DICTS: "1"
-        run: |
-          mvn -B -pl coccoc-tokenizer-java failsafe:integration-test failsafe:verify
