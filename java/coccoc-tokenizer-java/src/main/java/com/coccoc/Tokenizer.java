@@ -129,7 +129,7 @@ public class Tokenizer {
     // -----------------------------------------------------------------------
 
     public List<Token> segment(String text, TokenizeOption option, boolean keepPunctuation) {
-        return segmenter.segment(text);
+        return segmenter.segment(text, option, keepPunctuation);
     }
 
     // -----------------------------------------------------------------------
@@ -137,7 +137,7 @@ public class Tokenizer {
     // -----------------------------------------------------------------------
 
     public ArrayList<Token> segment(String text, boolean forTransforming, int tokenizeOption, boolean keepPuncts) {
-        return new ArrayList<>(segmenter.segment(text));
+        return new ArrayList<>(segmenter.segment(text, TokenizeOption.values()[tokenizeOption], keepPuncts));
     }
 
     public ArrayList<Token> segment(String text, boolean forTransforming, int tokenizeOption) {

@@ -124,4 +124,35 @@ class SegmenterTest {
         assertEquals("xin",  syllables.get(0));
         assertEquals("chao", syllables.get(1));
     }
+
+    // M7e — HOST mode: split on dots, each label is a WORD token
+    @Test
+    void segment_hostMode_splitsOnDots() {
+        Segmenter seg = new Segmenter(simpleTrie());
+        List<Token> tokens = seg.segment("www.google.com",
+                com.coccoc.TokenizeOption.HOST, false);
+        assertEquals(3, tokens.size());
+        assertTrue(tokens.stream().allMatch(t -> t.getType() == Token.Type.WORD));
+        assertEquals("www",    tokens.get(0).getText());
+        assertEquals("google", tokens.get(1).getText());
+        assertEquals("com",    tokens.get(2).getText());
+    }
+
+    // M7e — URL mode: strip scheme, each alphanumeric segment is a WORD token
+    @Test
+    void segment_urlMode_stripsSchemeAndSegments() {
+        Segmenter seg = new Segmenter(simpleTrie());
+        List<Token> tokens = seg.segment("https://example.com/path",
+                com.coccoc.TokenizeOption.URL, false);
+        // expect word tokens: example, com, path (separators omitted or PUNCT)
+        long wordCount = tokens.stream()
+                .filter(t -> t.getType() == Token.Type.WORD).count();
+        assertTrue(wordCount >= 3, "expected at least 3 WORD tokens, got " + wordCount);
+        List<String> words = tokens.stream()
+                .filter(t -> t.getType() == Token.Type.WORD)
+                .map(Token::getText).collect(java.util.stream.Collectors.toList());
+        assertTrue(words.contains("example"), "expected 'example' token");
+        assertTrue(words.contains("com"),     "expected 'com' token");
+        assertTrue(words.contains("path"),    "expected 'path' token");
+    }
 }
