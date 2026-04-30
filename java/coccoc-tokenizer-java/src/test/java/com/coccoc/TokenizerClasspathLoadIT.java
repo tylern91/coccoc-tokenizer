@@ -22,6 +22,22 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class TokenizerClasspathLoadIT {
 
+    private static final boolean DICTS_AVAILABLE =
+        TokenizerClasspathLoadIT.class.getClassLoader()
+            .getResource("com/coccoc/dicts/multiterm.bin") != null;
+
+    /** If REQUIRE_DICTS=1 and dicts are absent, hard-fail instead of silently skipping. */
+    private static void assumeDictsAvailable(String context) {
+        if (!DICTS_AVAILABLE && "1".equals(System.getenv("REQUIRE_DICTS"))) {
+            org.junit.jupiter.api.Assertions.fail(
+                "REQUIRE_DICTS=1 is set but com/coccoc/dicts/multiterm.bin is not on classpath"
+                + " (" + context + ")");
+        }
+        org.junit.jupiter.api.Assumptions.assumeTrue(DICTS_AVAILABLE,
+            "Skipping: com/coccoc/dicts/multiterm.bin not on classpath — " +
+            "build the dicts module first: mvn package -pl coccoc-tokenizer-java-dicts");
+    }
+
     @BeforeEach
     @AfterEach
     void resetSingleton() {
@@ -42,10 +58,7 @@ class TokenizerClasspathLoadIT {
 
     @Test
     void getInstance_returnsSameInstanceOnRepeatCall() throws IOException {
-        Assumptions.assumeTrue(
-            Tokenizer.class.getClassLoader()
-                .getResource("com/coccoc/dicts/multiterm.bin") != null,
-            "Skipping: dicts resources not on classpath");
+        assumeDictsAvailable("this test");
 
         Tokenizer first  = Tokenizer.getInstance();
         Tokenizer second = Tokenizer.getInstance();
@@ -54,10 +67,7 @@ class TokenizerClasspathLoadIT {
 
     @Test
     void getInstance_thenGetInstanceWithPathThrowsIllegalState() throws IOException {
-        Assumptions.assumeTrue(
-            Tokenizer.class.getClassLoader()
-                .getResource("com/coccoc/dicts/multiterm.bin") != null,
-            "Skipping: dicts resources not on classpath");
+        assumeDictsAvailable("this test");
 
         Tokenizer.getInstance(); // prime with classpath sentinel
         assertThrows(IllegalStateException.class,
@@ -67,10 +77,7 @@ class TokenizerClasspathLoadIT {
 
     @Test
     void getInstance_segmentReturnsTokens() throws IOException {
-        Assumptions.assumeTrue(
-            Tokenizer.class.getClassLoader()
-                .getResource("com/coccoc/dicts/multiterm.bin") != null,
-            "Skipping: dicts resources not on classpath");
+        assumeDictsAvailable("this test");
 
         Tokenizer t = Tokenizer.getInstance();
         // M7b: segment() is now implemented — must return non-empty token list

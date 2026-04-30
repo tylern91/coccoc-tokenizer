@@ -173,4 +173,47 @@ class DictReaderTest {
                     "after loading, no weight should be NaN; expected NEGATIVE_INFINITY in place of NaN");
         }
     }
+    // P1#21a — readSyllable must reject a corrupted magic header
+    @Test
+    void readSyllable_rejectsBadMagic() throws IOException {
+        SyllableTrie written = DictCompileTestSupport.buildSyllableTrie("xin");
+        Path binFile = tempDir.resolve("syllable_badmagic.bin");
+        DictCompileTestSupport.writeSyllableBin(binFile, written, 1);
+
+        byte[] bytes = java.nio.file.Files.readAllBytes(binFile);
+        bytes[0] = 'X'; // corrupt first byte of "CCSY"
+        java.nio.file.Files.write(binFile, bytes);
+
+        IOException ex = assertThrows(IOException.class,
+                () -> DictReader.readSyllable(binFile));
+        assertTrue(ex.getMessage().contains("bad magic"), "message: " + ex.getMessage());
+    }
+
+    // P1#21b — readBigram must reject a corrupted magic header
+    @Test
+    void readBigram_rejectsBadMagic() throws IOException {
+        int[] rowOffset = {0, 0}; int[] colIndex = {}; float[] value = {};
+        Path binFile = tempDir.resolve("bigram_badmagic.bin");
+        DictCompileTestSupport.writeBigramBin(binFile, 1, rowOffset, colIndex, value);
+
+        byte[] bytes = java.nio.file.Files.readAllBytes(binFile);
+        bytes[0] = 'X'; // corrupt first byte of "CCBG"
+        java.nio.file.Files.write(binFile, bytes);
+
+        IOException ex = assertThrows(IOException.class,
+                () -> DictReader.readBigram(binFile));
+        assertTrue(ex.getMessage().contains("bad magic"), "message: " + ex.getMessage());
+    }
+
+    // P1#21c — truncated file (fewer than 12 bytes) must be rejected immediately
+    @Test
+    void readMultiterm_rejectsTooShortFile() throws IOException {
+        Path binFile = tempDir.resolve("multiterm_tooshort.bin");
+        java.nio.file.Files.write(binFile, new byte[]{0x43, 0x43, 0x4D}); // 3 bytes: "CCM" (incomplete magic)
+
+        IOException ex = assertThrows(IOException.class,
+                () -> DictReader.readMultiterm(binFile));
+        assertTrue(ex.getMessage().contains("truncated"), "message: " + ex.getMessage());
+    }
+
 }

@@ -210,6 +210,20 @@ class SegmenterTest {
         assertEquals(1, punctCount, "keepPunct=true must preserve PUNCT tokens; got: " + tokens);
         assertEquals(3, tokens.size(), "expected WORD('a'), WORD('b'), PUNCT('!'); got: " + tokens);
     }
-
+    // M9 shouldGo regression — compound "viet" must beat sub-words "vi"+"et"
+    // Without the shouldGo gate, position 2 is re-scanned: "et" (score=1.0) stacks on
+    // "vi" (score=1.0) giving total 2.0 > 1.0 for "viet", producing 2 tokens.
+    // With the gate, position 2 is interior and not re-scanned, so "viet" wins.
+    @Test
+    void segment_shouldGoGate_prefersCompoundOverSubwords() {
+        TriePacker.HashNode root = TriePacker.buildHashTrie(new String[]{"vi", "et", "viet"});
+        MultitermTrie trie = TriePacker.pack(root);
+        Segmenter seg = new Segmenter(trie);
+        List<Token> tokens = seg.segment("viet");
+        assertEquals(1, tokens.size(),
+            "shouldGo gate must prevent re-scan at pos 2; expected single token 'viet', got: " + tokens);
+        assertEquals("viet", tokens.get(0).getText());
+        assertEquals(Token.Type.WORD, tokens.get(0).getType());
+    }
 
 }
