@@ -10,7 +10,9 @@ import com.coccoc.internal.trie.SyllableTrie;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Pure-Java Viterbi segmenter — NORMAL mode, M7b scope.
@@ -18,6 +20,8 @@ import java.util.List;
  * consecutive same-type spans merged during traceback.
  */
 public final class Segmenter {
+
+    private static final Set<String> ORDINAL_SUFFIXES = new HashSet<>(Arrays.asList("st", "nd", "rd", "th"));
 
     private final MultitermTrie multitermTrie;
     private final SyllableTrie  syllableTrie;   // null if sticky segmentation not available
@@ -140,7 +144,7 @@ public final class Segmenter {
             }
             tokens.add(new Token(spanText, type, span[0], span[1]));
         }
-        return tokens;
+        return applyPostHocRules(tokens);
     }
 
     /**
@@ -220,4 +224,26 @@ public final class Segmenter {
     private boolean canMerge(Token.Type a, Token.Type b) {
         return a == b && (a == Token.Type.WORD || a == Token.Type.NUMBER);
     }
+
+    // Post-hoc token merging rules applied after Viterbi traceback.
+    private List<Token> applyPostHocRules(List<Token> tokens) {
+        for (int i = tokens.size() - 2; i >= 0; i--) {
+            Token cur  = tokens.get(i);
+            Token next = tokens.get(i + 1);
+            if (cur.getType() != Token.Type.NUMBER) continue;
+
+            boolean mergePercent = next.getType() == Token.Type.PUNCT
+                    && "%".equals(next.getText());
+            boolean mergeOrdinal = next.getType() == Token.Type.WORD
+                    && ORDINAL_SUFFIXES.contains(next.getText().toLowerCase());
+
+            if (mergePercent || mergeOrdinal) {
+                String merged = cur.getText() + next.getText();
+                tokens.set(i, new Token(merged, Token.Type.WORD, cur.getPos(), next.getEndPos()));
+                tokens.remove(i + 1);
+            }
+        }
+        return tokens;
+    }
+
 }

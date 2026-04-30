@@ -155,4 +155,26 @@ class SegmenterTest {
         assertTrue(words.contains("com"),     "expected 'com' token");
         assertTrue(words.contains("path"),    "expected 'path' token");
     }
+
+    // M7f — post-hoc: NUMBER + "%" PUNCT → WORD
+    @Test
+    void segment_numberPercent_returnsWordToken() {
+        Segmenter seg = new Segmenter(simpleTrie());
+        List<Token> tokens = seg.segment("100%");
+        assertEquals(1, tokens.size(), "100% should be one token, got: " + tokens);
+        assertEquals(Token.Type.WORD, tokens.get(0).getType());
+        assertEquals("100%", tokens.get(0).getText());
+    }
+
+    // M7f — post-hoc: NUMBER + ordinal suffix → WORD
+    @Test
+    void segment_ordinalSuffix_returnsWordToken() {
+        Segmenter seg = new Segmenter(simpleTrie());
+        for (String ord : new String[]{"1st", "2nd", "3rd", "4th"}) {
+            List<Token> tokens = seg.segment(ord);
+            assertEquals(1, tokens.size(), ord + " should be one token, got: " + tokens);
+            assertEquals(Token.Type.WORD, tokens.get(0).getType(), ord + " should be WORD");
+            assertEquals(ord, tokens.get(0).getText());
+        }
+    }
 }
