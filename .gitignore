@@ -6,3 +6,4 @@ python/*.html
 
 .worktrees
 .serena/
+.claude/
